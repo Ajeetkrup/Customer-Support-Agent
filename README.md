@@ -16,7 +16,7 @@ The project has three main runtime pieces: a **batch ticket processor** (LangGra
 
 ```mermaid
 flowchart TB
-  subgraph graph [LangGraph SUPPORT_AGENT]
+  subgraph support_agent [LangGraph SUPPORT_AGENT]
     GC[gather_context] --> TR[triage]
     TR --> RV[resolve]
     TR --> ES[escalate_ticket]
@@ -26,8 +26,8 @@ flowchart TB
     CL --> FN
   end
 
-  Run["run.py batch"] --> graph
-  Groq["Groq LLM"] -.-> graph
+  Run["run.py batch"] --> support_agent
+  Groq["Groq LLM"] -.-> support_agent
 
   subgraph tools [Tools and outputs]
     TJ["JSON fixtures"]
@@ -35,8 +35,8 @@ flowchart TB
     J["JSONL audit / replies / refunds"]
   end
 
-  graph --> TJ
-  graph --> RAG
+  support_agent --> TJ
+  support_agent --> RAG
   FN --> J
 
   subgraph rag [RAG stack]
