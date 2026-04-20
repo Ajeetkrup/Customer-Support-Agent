@@ -10,7 +10,7 @@ The system uses a **LangGraph** state machine with **Groq** LLM calls, determini
 
 ## Core architecture
 
-![Core architecture](server/architecture.png)
+![Core architecture](docs/assets/architecture.png)
 
 The project has three main runtime pieces: a **batch ticket processor** (LangGraph + Groq), a **HTTP API** (FastAPI) for operations and integration, and a **RAG stack** (LlamaIndex, Google GenAI embeddings, Qdrant) used when the agent or API searches the knowledge base. The RAG flow also uses **Redis-backed caching** for query-level embedding reuse and LLM response reuse.
 
