@@ -12,6 +12,6 @@ Full **core architecture**, repository layout, environment variables, setup, and
 | `agent/tools.py` | Tool implementations (JSON fixtures + RAG bridge) |
 | `agent/prompts.py`, `agent/state.py` | Prompts and typed agent state |
 | `run.py` | Async batch runner over `tickets.json` |
-| `rag/` | Qdrant client, LlamaIndex ingest/retrieve |
+| `rag/` | Qdrant (sync/async clients, Redis KV), ingest (`knowledge-base.md` → Qdrant + persisted `./storage`), hybrid retrieval (dense + BM25 fusion, reranker, HyDE) |
 | `audit.py` | Audit JSONL writer |
 | `*.json` | Fixture data for tools and batch runs |

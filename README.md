@@ -59,7 +59,26 @@ flowchart TB
 
 **Tooling.** Tools live in `server/src/agent/tools.py`: lookups and policy checks against JSON catalogs, `search_knowledge_base` wired to the RAG pipeline, escalation and messaging helpers. Refunds and replies are guarded by eligibility rules enforced in prompts and tools.
 
-**RAG.** Markdown knowledge is ingested into Qdrant (`server/src/rag/injest.py`); queries use LlamaIndex with Google GenAI embeddings (`server/src/rag/retrieve.py`). The API exposes ingest and retrieve endpoints under `/api`.
+**RAG.** The knowledge base flows through a dedicated ingestion and retrieval pipeline (see **RAG pipeline features** below). API routes: `/api/injest-knowledge-base`, `/api/retrieve-knowledge-base` under `/api`.
+
+### RAG pipeline features
+
+**Ingestion** (`server/src/rag/injest.py`)
+
+- **Source:** `server/src/rag/knowledge-base.md` with metadata (e.g. `source` filename).
+- **Embeddings:** Google GenAI **`gemini-embedding-001`** via LlamaIndex (`GoogleGenAIEmbedding`).
+- **Vectors:** Qdrant collection **`knowledge_base`** — **3072-dimensional** vectors, **cosine** distance; the collection is **created automatically** if it does not exist.
+- **Indexing & persistence:** **`VectorStoreIndex`** with **`store_nodes_override=True`** and **`storage_context.persist("./storage")`** so the **docstore** is on disk — required for **BM25** lexical retrieval at query time.
+
+**Retrieval** (`server/src/rag/retrieve.py`)
+
+- **Connection:** **Async Qdrant** (`AsyncQdrantClient` / gRPC-oriented client in `server/src/rag/qdrant.py`) for non-blocking vector access; sync client used for ingestion.
+- **Index load:** **`load_index_from_storage`** merges the persisted `./storage` docstore with the live Qdrant vector store.
+- **Hybrid retrieval:** **`QueryFusionRetriever`** over (1) **dense** vector search (`similarity_top_k=5`) and (2) **`BM25Retriever`** on the docstore (`similarity_top_k=5`), with **`num_queries=3`** query variants and **`reciprocal_rerank`** fusion.
+- **Reranking:** **`SentenceTransformerRerank`** (`cross-encoder/ms-marco-MiniLM-L-6-v2`, **`top_n=3`**).
+- **Query rewriting:** **`HyDEQueryTransform`** (`include_original=True`) wrapped with **`TransformQueryEngine`** to improve recall on paraphrased questions.
+- **Generation:** **`RetrieverQueryEngine`** → async LLM completion via **`get_llm_response_async`** (e.g. **Groq** `qwen/qwen3-32b` in current settings).
+- **Observability:** stage **timing logs** for Qdrant connect, storage load, retriever setup, reranker, HyDE, and LLM latency.
 
 **Caching.** Redis is used in two places for faster repeated queries:
 - Query-level embedding cache via LlamaIndex embedding cache integration (`Settings.embed_model(..., embeddings_cache=redis_kv)`).
@@ -75,7 +94,7 @@ flowchart TB
 | `server/src/router/api.py` | REST routes (`/api/...`) |
 | `server/src/agent/` | LangGraph graph (`agent.py`), prompts, typed `state`, tools |
 | `server/src/run.py` | Concurrent batch runner over `tickets.json` |
-| `server/src/rag/` | Qdrant client, ingest, retrieve |
+| `server/src/rag/` | Qdrant (sync/async), ingest, hybrid retrieval pipeline |
 | `server/src/models/`, `server/src/services/` | SQLAlchemy models and DB services |
 | `server/src/*.json` | Fixture data for tools and batch runs |
 | `client/` | Frontend (Vite + React), if used |
@@ -84,7 +103,7 @@ flowchart TB
 
 - **Agent:** Python 3.10+, LangGraph, LangChain Groq (`ChatGroq`), Pydantic structured outputs, asyncio concurrency (`AGENT_CONCURRENCY`).
 - **API:** FastAPI, SQLAlchemy (async), Alembic, PostgreSQL.
-- **RAG:** LlamaIndex, `qdrant-client`, Google GenAI embeddings (and Gemini where configured), Qdrant vector store, Redis cache.
+- **RAG:** LlamaIndex, `qdrant-client` (sync ingest + async query), Google GenAI embeddings (`gemini-embedding-001`), Qdrant vector store, **BM25 + QueryFusionRetriever** hybrid search, **cross-encoder reranking**, **HyDE** query transform, Redis embedding cache.
 - **Data:** Local JSON fixtures for the agent; PostgreSQL for the API-backed workflow.
 
 ## Configuration
