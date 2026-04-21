@@ -82,3 +82,5 @@ class ProductSchema(BaseModel):
     def from_orm_product(cls, row: Any) -> dict[str, Any]:
         """SQLAlchemy Product row → JSON-safe dict for agent tools."""
         return cls.model_validate(row).model_dump(mode="json")
+class AnswerResponse(BaseModel):
+    answer: str

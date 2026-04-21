@@ -66,7 +66,7 @@ async def injest_knowledge_base():
 
         # 5. Build index 
         index = VectorStoreIndex(
-            documents,
+            nodes,
             storage_context=storage_context,
             store_nodes_override=True
         )

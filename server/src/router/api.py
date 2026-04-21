@@ -32,7 +32,7 @@ async def retrieve_kb(query: str, db: AsyncSession = Depends(get_db)):
     from src.rag.retrieve import retrieve_from_qdrant
     try:
         result = await retrieve_from_qdrant(query)
-        logger.info(f"Router: Knowledge base retrieved successfully. Result: {result}")
+        # logger.info(f"Router: Knowledge base retrieved successfully. Result: {result}")
         return {"message": "Knowledge base retrieved successfully.", "result": result}
     except Exception as e:
         logger.error(f"Router: Knowledge base error during retrieval - error: {str(e)}", exc_info=True)

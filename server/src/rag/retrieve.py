@@ -14,6 +14,9 @@ from llama_index.core.indices.query.query_transform import HyDEQueryTransform
 from llama_index.core.query_engine import TransformQueryEngine
 from llama_index.core import load_index_from_storage
 from llama_index.core.query_engine import RetrieverQueryEngine
+from llama_index.core.response_synthesizers import get_response_synthesizer
+from src.main import app
+from src.schemas.global_schema import AnswerResponse
 import logging
 import time
 
@@ -39,6 +42,10 @@ Settings.llm = Groq(model="qwen/qwen3-32b", api_key=settings.GROQ_API_KEY, tempe
 # )
 
 COLLECTION_NAME = "knowledge_base"
+
+response_synthesizer = get_response_synthesizer(
+    output_cls=AnswerResponse
+)
 
 async def retrieve_from_qdrant(query: str):
     try:
@@ -78,10 +85,7 @@ async def retrieve_from_qdrant(query: str):
         logger.info(f"Time taken to create query fusion retriever: {time.time() - time_start} seconds")
         time_start = time.time()
         #reranker
-        reranker = SentenceTransformerRerank(
-            model="cross-encoder/ms-marco-MiniLM-L-6-v2",
-            top_n=3
-        )
+        reranker = app.state.reranker
         logger.info(f"Time taken to create sentence transformer reranker: {time.time() - time_start} seconds")
         time_start = time.time()
         # query rewriting
@@ -90,7 +94,8 @@ async def retrieve_from_qdrant(query: str):
         time_start = time.time()
         query_engine = RetrieverQueryEngine.from_args(
             retriever=retriever,
-            node_postprocessors=[reranker]
+            node_postprocessors=[reranker],
+            response_synthesizer=response_synthesizer
         )
         logger.info(f"Time taken to create retriever query engine: {time.time() - time_start} seconds")
         time_start = time.time()
@@ -105,7 +110,9 @@ async def retrieve_from_qdrant(query: str):
         logger.info(f"Time taken to get LLM response: {time.time() - time_start} seconds")
         time_start = time.time()
 
-        text = getattr(response, "response", None) or str(response)
+        print("---------------------------Response from RAG--------------------------: ", response)
+
+        text = getattr(response, "answer", None) or str(response)
         return text
 
     except Exception as e:

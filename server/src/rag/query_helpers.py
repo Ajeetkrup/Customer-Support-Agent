@@ -50,7 +50,7 @@ async def get_llm_response_async(query, query_engine, filters=None):
         return load(cached)
 
     resp = await query_engine.aquery(qn) 
-    out = getattr(resp, "response", None) or str(resp)
+    out = getattr(resp, "answer", None) or str(resp)
 
     r.set(key, dump(out), ex=LLM_TTL)
     return out
